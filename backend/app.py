@@ -2,20 +2,27 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from transformers import pipeline
-import os
 
 app = FastAPI(title="AI Notes Summariser API")
 
+# CORS – for now keep it open, we can tighten later
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ok for now (dev/demo)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print("Loading summarization model... (first time will be slow)")
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+print("Loading summarization model... (Render free tier friendly)")
+
+# 🔥 Use a MUCH smaller model than bart-large-cnn
+# This one is lighter and should fit in 512MB:
+summarizer = pipeline(
+    "summarization",
+    model="sshleifer/distilbart-cnn-12-6",
+)
+
 print("Model loaded!")
 
 
@@ -40,11 +47,11 @@ def summarize(req: SummarizeRequest):
         return SummarizeResponse(summary="Please provide some text to summarise.")
 
     target_sentences = req.max_sentences or 5
-    max_length = min(512, target_sentences * 30)
-    min_length = max(30, target_sentences * 10)
+    max_length = min(256, target_sentences * 25)
+    min_length = max(20, target_sentences * 8)
 
-    if len(text.split()) > 1200:
-        text = " ".join(text.split()[:1200])
+    if len(text.split()) > 800:
+        text = " ".join(text.split()[:800])
 
     result = summarizer(
         text,
@@ -54,6 +61,3 @@ def summarize(req: SummarizeRequest):
     )
     summary_text = result[0]["summary_text"].strip()
     return SummarizeResponse(summary=summary_text)
-
-
-# ⚠️ Render will run using uvicorn with $PORT (we handle that in command, not here)
