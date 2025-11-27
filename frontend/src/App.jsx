@@ -11,8 +11,8 @@ function App() {
   const [copied, setCopied] = useState(false);
 
   // Uses env var in production, falls back to localhost for dev
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/summarize";
+ const API_URL = "https://ai-notes-backend-9x7n.onrender.com/summarize";
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
