@@ -9,11 +9,16 @@ app = FastAPI(title="AI Notes Summariser API (HF-powered)")
 # CORS for dev + deployed frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # later we can restrict to your Vercel URL
+    allow_origins=[
+        "https://ai-notes-summarisers.vercel.app",  # deployed frontend
+        "http://localhost:5173",                    # optional: local dev
+        "http://localhost:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 🔑 Hugging Face Inference API
 HF_API_URL = "https://router.huggingface.co/hf-inference/models/sshleifer/distilbart-cnn-12-6"
