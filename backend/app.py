@@ -35,29 +35,29 @@ def root():
 
 
 @app.post("/summarize", response_model=SummarizeResponse)
+@app.post("/summarize", response_model=SummarizeResponse)
 def summarize(req: SummarizeRequest):
+    print("📌 Summarize endpoint hit!")
+
     if not HF_API_TOKEN:
+        print("❌ HF_API_TOKEN is missing!")
         raise HTTPException(
             status_code=500,
-            detail="HF_API_TOKEN is not set on the server.",
+            detail="HF_API_TOKEN is not set"
         )
 
     text = req.text.strip()
     if not text:
-        return SummarizeResponse(summary="Please provide some text to summarise.")
+        return SummarizeResponse(summary="Please provide some text.")
 
     target_sentences = req.max_sentences or 5
     max_length = min(256, target_sentences * 25)
     min_length = max(20, target_sentences * 8)
 
-    # Truncate extremely long text
-    words = text.split()
-    if len(words) > 800:
-        text = " ".join(words[:800])
+    if len(text.split()) > 800:
+        text = " ".join(text.split()[:800])
 
-    headers = {
-        "Authorization": f"Bearer {HF_API_TOKEN}"
-    }
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 
     payload = {
         "inputs": text,
@@ -68,32 +68,22 @@ def summarize(req: SummarizeRequest):
         }
     }
 
-    try:
-        resp = requests.post(HF_API_URL, headers=headers, json=payload, timeout=60)
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=502, detail=f"Error calling Hugging Face API: {e}")
+    print("📤 Sending request to HuggingFace model...")
+    resp = requests.post(HF_API_URL, headers=headers, json=payload)
 
-    if resp.status_code == 503:
-        # Model is loading on HF side
-        raise HTTPException(
-            status_code=503,
-            detail="Model is still loading on Hugging Face. Please try again in a moment.",
-        )
+    print("📥 Raw HF response:")
+    print(resp.text)
 
     if not resp.ok:
         raise HTTPException(
             status_code=resp.status_code,
-            detail=f"Hugging Face API error: {resp.text}",
+            detail=f"HF Error: {resp.text}"
         )
 
-    data = resp.json()
-    # Expected: [{"summary_text": "..."}]
     try:
-        summary_text = data[0]["summary_text"].strip()
-    except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected response from Hugging Face: {data}",
-        )
-
-    return SummarizeResponse(summary=summary_text)
+        data = resp.json()
+        summary_text = data[0]["summary_text"]
+        return SummarizeResponse(summary=summary_text)
+    except Exception as e:
+        print("❌ Failed to parse HF response:", e)
+        return SummarizeResponse(summary="HF returned unexpected response format.")
